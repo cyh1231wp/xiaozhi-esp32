@@ -77,6 +77,58 @@ static const ThemeColors LIGHT_THEME = {
 // Current theme - initialize based on default config
 static ThemeColors current_theme = LIGHT_THEME;
 
+int old_index = 0;
+
+void LcdDisplay::ClickEmotion(lv_event_t * event) {
+    ESP_LOGI(TAG, "ClickEmotion");
+    std::vector<const char *> emotions = {
+        "neutral",
+        "happy",
+        "laughing",
+        "funny",
+        "sad",
+        "angry",
+        "crying",
+        "loving",
+        "embarrassed",
+        "surprised",
+        "shocked",
+        "thinking",
+        "winking",
+        "cool",
+        "relaxed",
+        "delicious",
+        "kissy",
+        "confident",
+        "sleepy",
+        "silly",
+        "confused"
+    };
+    // 初始化随机数种子
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    // 随机选择一个索引
+    int random_index = std::rand() % emotions.size();
+
+    if (random_index == old_index) {
+        // 如果随机数与上一个相同，则重新生成
+        random_index = std::rand() % emotions.size();
+    }
+    old_index = random_index;
+
+    // 获取 LcdDisplay 实例
+    LcdDisplay* self = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (!self) {
+        ESP_LOGE(TAG, "LcdDisplay instance is null");
+        return;
+    }
+    ESP_LOGI(TAG, "Set emotion: %s", emotions[random_index]);
+    self->SetEmotion(emotions[random_index]);
+}
+
+static void my_event_cb2(lv_event_t * event) {
+    ESP_LOGI(TAG, "my_event_cb2");
+}
 
 LV_FONT_DECLARE(font_awesome_30_4);
 
@@ -575,11 +627,20 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY); // 子对象居中对齐，等距分布
 
     emotion_label_ = lv_label_create(content_);
+    lv_obj_add_flag(emotion_label_, LV_OBJ_FLAG_CLICKABLE); // 使 label 可点击
+    lv_obj_add_event_cb(emotion_label_, [](lv_event_t* event) {
+        LcdDisplay* self = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+        if (self) {
+            self->ClickEmotion(event);
+        }
+    }, LV_EVENT_CLICKED, this);
     lv_obj_set_style_text_font(emotion_label_, &font_awesome_30_4, 0);
     lv_obj_set_style_text_color(emotion_label_, current_theme.text, 0);
     lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
 
     chat_message_label_ = lv_label_create(content_);
+    lv_obj_add_flag(chat_message_label_, LV_OBJ_FLAG_CLICKABLE); // 使 label 可点击
+    lv_obj_add_event_cb(chat_message_label_, my_event_cb2, LV_EVENT_CLICKED, NULL);
     lv_label_set_text(chat_message_label_, "");
     lv_obj_set_width(chat_message_label_, LV_HOR_RES * 0.9); // 限制宽度为屏幕宽度的 90%
     lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_WRAP); // 设置为自动换行模式
@@ -607,6 +668,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
 
     status_label_ = lv_label_create(status_bar_);
+    lv_obj_add_flag(status_label_, LV_OBJ_FLAG_CLICKABLE); // 使 label 可点击
+    lv_obj_add_event_cb(status_label_, my_event_cb2, LV_EVENT_CLICKED, NULL);
+
     lv_obj_set_flex_grow(status_label_, 1);
     lv_label_set_long_mode(status_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
